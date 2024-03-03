@@ -1,0 +1,141 @@
+:root {
+  --send-bg: #0B93F6;
+  --send-color: white;
+  --receive-bg: #E5E5EA;
+  --receive-text: black;
+  --page-background: white;
+}
+
+body {
+  font-family: "Helvetica Neue", Helvetica, sans-serif;
+  /* font-size: 20px; */
+  font-weight: normal;
+  /* max-width: 450px; */
+  /* margin: 50px auto; */
+  display: flex;
+  flex-direction: column;
+  background-color: var(--page-background);
+}
+
+p {
+  max-width: 255px; /* or any max-width that suits your design */
+  word-wrap: break-word;
+  margin-bottom: 12px;
+  line-height: 24px;
+  position: relative;
+  padding: 10px 20px;
+  border-radius: 25px;
+  background-color: var(--receive-bg); /* Default background for received messages */
+  color: var(--receive-text); /* Default text color for received messages */
+}
+
+
+p:before,
+p:after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  height: 25px;
+}
+
+.send {
+  color: var(--send-color);
+  background: var(--send-bg);
+  align-self: flex-end;
+}
+
+.send:before {
+  right: -7px;
+  width: 20px;
+  background-color: var(--send-bg);
+  border-bottom-left-radius: 16px 14px;
+}
+
+.send:after {
+  right: -26px;
+  width: 26px;
+  background-color: var(--page-background);
+  border-bottom-left-radius: 10px;
+}
+
+.receive {
+  background: var(--receive-bg);
+  color: black;
+  align-self: flex-start;
+}
+
+.receive:before {
+  left: -7px;
+  width: 20px;
+  background-color: var(--receive-bg);
+  border-bottom-right-radius: 16px 14px;
+}
+
+.receive:after {
+  left: -26px;
+  width: 26px;
+  background-color: var(--page-background);
+  border-bottom-right-radius: 10px;
+}
+
+
+.chat-window {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  max-height: 90vh;
+  width: 50vw;
+  margin: 20px auto;
+  border: 1px solid #ccc;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.chat-container {
+  display: flex;
+  flex-direction: column; /* Stack messages vertically */
+  flex-grow: 1;
+  overflow-y: auto;
+  padding: 10px;
+}
+
+.input-container {
+  display: flex;
+  padding: 10px;
+  background-color: white;
+}
+
+/* Additional styles remain the same */
+
+/* Ensuring input stretches to fill space left by button */
+.input-container input {
+  flex-grow: 1;
+  /* Allows input to expand */
+  margin-right: 10px;
+  /* Spacing between input and button */
+  padding: 10px;
+  /* Makes input taller and matches internal padding */
+  border-radius: 4px;
+  /* Optional: rounds corners */
+  border: 1px solid #ccc;
+  /* Optional: adds border */
+}
+
+.input-container button {
+  padding: 10px 15px;
+  /* Adjust padding to taste */
+  background-color: var(--send-bg);
+  /* Use your send button color */
+  color: var(--send-color);
+  /* Text color for the button */
+  border: none;
+  /* Removes the default border */
+  cursor: pointer;
+  /* Changes cursor to indicate button */
+  border-radius: 4px;
+  /* Optional: rounds corners of the button */
+}
+
+.input-container button:hover {
+  background-color: darken(var(--send-bg), 10%);
+  /* Optional: slightly darken button on hover */
+}
