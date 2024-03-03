@@ -11,6 +11,8 @@
     <script defer src="/__/firebase/10.8.1/firebase-firestore-compat.js"></script>
     <script defer src="/__/firebase/init.js?useEmulator=true"></script>
 
+    <link rel="stylesheet" href="styles.css">
+
     <style>
         table {
             width: 100%;
@@ -30,6 +32,10 @@
 </head>
 
 <body>
+    <nav>
+        <a href="index.html">Home</a>
+        <a href="scores.html">Scores</a>
+    </nav>
     <h2>Scores Table</h2>
     <table id="scoresTable">
         <thead>
@@ -38,7 +44,6 @@
                 <th>Answer</th>
                 <th>Question</th>
                 <th>Base Question</th>
-                <th>Question Index</th>
                 <th>Description</th>
             </tr>
         </thead>
@@ -62,7 +67,6 @@
                         <td>${data.answer}</td>
                         <td>${data.question}</td>
                         <td>${data.base_question}</td>
-                        <td>${data.question_index}</td>
                         <td>${data.description}</td>
                     `;
                     
