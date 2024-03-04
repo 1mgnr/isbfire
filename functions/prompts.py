@@ -36,7 +36,7 @@ def QUESTION_BUILDER_3(state, base_question):
 
 
 def SCORER(base_question):  
-    f"Let's assess the candidate's response {base_question}. \n The scoring guidelines are as follows: 5 = Very much like me (Candidate has very clearly demonstrated how they overcame a significant challenge), 4 = Mostly like me (Candidate shows a fair amount of resilience in dealing with past difficulties), 3 = Somewhat like me (Candidate gives a somewhat fitting example of overcoming adversity), 2 = Not much like me (Candidate gives an example that doesn't quite demonstrate overcoming a major challenge), 1 = Not like me at all (Candidate does not provide a relevant example)"
+    return f"Let's assess the candidate's response {base_question}. \n The scoring guidelines are as follows: 5 = Very much like me (Candidate has very clearly demonstrated how they overcame a significant challenge), 4 = Mostly like me (Candidate shows a fair amount of resilience in dealing with past difficulties), 3 = Somewhat like me (Candidate gives a somewhat fitting example of overcoming adversity), 2 = Not much like me (Candidate gives an example that doesn't quite demonstrate overcoming a major challenge), 1 = Not like me at all (Candidate does not provide a relevant example)"
 
 
 def INSIGHT_DISCOVERER(base_question):  
