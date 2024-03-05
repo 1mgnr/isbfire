@@ -39,46 +39,42 @@ def send_reply(message):
     reply_document = {"message": message, "role": "bot", "timestamp": firestore.SERVER_TIMESTAMP}
     db.collection("messages").add(reply_document)
 
-
 def handle_text_message(message):
     global orchestrator
 
     user_message = message
-    step = orchestrator.state["step"]
     num_questions = len(BASE_QUESTIONS)
 
-    # handle the different stages of the dialog
-    if step == 0 and not orchestrator.state["intro_done"]:
+    # Introduction
+    if not orchestrator.state["intro_done"]:
         orchestrator.state["intro_done"] = True
-        orchestrator.state["step"] += 1
         return "\n".join(CREATE_INTRO)
 
-    elif step == 1:
-        orchestrator.state["resume"] = orchestrator.get_summary(user_message)
-        orchestrator.state["step"] += 1
-        return "Received resume"
-
-    elif 2 <= step < num_questions * 2 + 1:
-        if step % 2 == 0:  # Score the answer and provide follow-ups
-            orchestrator.state, final_score = orchestrator.agent_scorer(user_message)
-            if final_score <= 2:  # if the score is not satisfactory, ask a follow up
-                return f"Follow-up question {orchestrator.state['question_index']}"
-            else:
-                orchestrator.state["step"] += 1
-                return "Waiting..."
-
-        else:  # Provide next question
-            orchestrator.state = orchestrator.agent_question_maker()
+    # Resume reception
+    elif orchestrator.state["step"] == 0:
+        if len(user_message) < 50:  # check for adequate resume text
+            return REQUEST_INADEQUATE_TEXT
+        else:
+            orchestrator.state["resume"] = orchestrator.get_summary(user_message)
             orchestrator.state["step"] += 1
-            question = orchestrator.state["questions"][orchestrator.state["question_index"]]
-            return f"Question #{orchestrator.state['question_index'] + 1}: {question}"
+            return "Received resume"
 
-    elif step == num_questions * 2 + 1:  # At the end of the conversation
-        summary_message = "\n".join([f"Q{q+1}: {question}\nA: {answer}\nScore: {score}" 
-                                      for q, question, answer, score in zip(range(1, num_questions+1), 
-                                                                           orchestrator.state["questions"], 
-                                                                           orchestrator.state["answers"], 
-                                                                           orchestrator.state["scores"])])
-        # reset the state for next conversation
+    # Answer reception
+    elif orchestrator.state["step"] % 2 != 0:
+        # answer reception from user
+        orchestrator.state, final_score = orchestrator.agent_scorer(user_message)
+        return f"Score #{orchestrator.state['question_index'] + 1}. Awaiting next question..."
+
+    # Question generation
+    elif orchestrator.state["step"] % 2 == 0 and orchestrator.state["step"] // 2 <= num_questions:
+        orchestrator.agent_question_maker()  # Task the agent with generating the question
+        question = orchestrator.state["questions"][orchestrator.state["question_index"]]
+        orchestrator.state["step"] += 1
+        return f"Question #{orchestrator.state['question_index'] + 1}: {question}"
+
+    # All questions have been asked, reset the state for next conversation
+    elif orchestrator.state["step"] // 2 > num_questions:
         orchestrator.reset_state()
-        return f"Thank you for your time.\n\nSummary:\n{summary_message}"
+        return "Thank you for your time. Please wait while we prepare your final results."
+
+    return "Waiting for the candidate's response ..."

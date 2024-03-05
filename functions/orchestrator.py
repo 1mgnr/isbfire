@@ -52,7 +52,7 @@ class Orchestrator:
         self.state["answers"][self.state["question_index"]] = answer  # Save the candidate's answer
 
         score_string = self.assistant.converse(prompts.SCORER(base_question), 
-                                               f"...description, 6. base question: {base_question}, 7. question and 8. answer: {self.state['answers'][self.state['question_index']]}")
+                                               f"Given the scoring guidelines mentioned above, please assess the following answer: {self.state['answers'][self.state['question_index']]}, with respect to the question: {self.state['questions'][self.state['question_index']]} and relevance to {base_question}. Give response in a json object with 1. final_score (number), 2. relevance_to_question (number), 3. seriousness_of_answer (number), 4. communication_skills (number), 5. the description, 6. base question: {base_question}, 7. question and 8. answer: {self.state['answers'][self.state['question_index']]}")
         score_dict = json.loads(score_string)
         
         final_score = (0.5 * score_dict["relevance_to_question"] + 
@@ -60,8 +60,9 @@ class Orchestrator:
                        0.2 * score_dict["communication_skills"])
         
         self.state["scores"][self.state["question_index"]] = final_score
-        self.state["step"] += 1
-        self.state["question_index"] += 1
+       # Don't increment question_index here. It should be incremented in handle_text_message
+        if final_score > 2:
+            self.state["step"] += 1 # increment the step here, move towards next question
 
         return self.state, final_score
 
