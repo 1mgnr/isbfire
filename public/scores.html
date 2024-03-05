@@ -5,7 +5,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>ISB-EsMagico-Interviewer</title>
-    
+
     <!-- Firebase SDKs -->
     <script defer src="/__/firebase/10.8.1/firebase-app-compat.js"></script>
     <script defer src="/__/firebase/10.8.1/firebase-firestore-compat.js"></script>
@@ -18,13 +18,19 @@
             width: 100%;
             border-collapse: collapse;
         }
-        table, th, td {
+
+        table,
+        th,
+        td {
             border: 1px solid black;
         }
-        th, td {
+
+        th,
+        td {
             padding: 8px;
             text-align: left;
         }
+
         th {
             background-color: #f2f2f2;
         }
@@ -44,7 +50,10 @@
                 <th>Answer</th>
                 <th>Question</th>
                 <th>Base Question</th>
-                <th>Description</th>
+                <th>Description/Score Rationale</th>
+                <th>Acceptable?</th>
+                <th>Remarks</th>
+
             </tr>
         </thead>
         <tbody>
@@ -53,7 +62,7 @@
     </table>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             const db = firebase.firestore();
             const scoresTableBody = document.getElementById('scoresTable').getElementsByTagName('tbody')[0];
 
@@ -61,6 +70,7 @@
                 querySnapshot.forEach((doc) => {
                     const data = doc.data();
                     const row = document.createElement('tr');
+                    row.dataset.id = doc.id; // Store document id on the row.
 
                     row.innerHTML = `
                         <td>${data.score}</td>
@@ -68,14 +78,56 @@
                         <td>${data.question}</td>
                         <td>${data.base_question}</td>
                         <td>${data.description}</td>
+                        <td><input type="checkbox" ${data.acceptable ? 'checked' : ''}></td>
+                        <td><input type="text" value="${data.remarks || ''}"></td>
+
                     `;
-                    
+
                     scoresTableBody.appendChild(row);
                 });
             }).catch((error) => {
                 console.error("Error fetching scores: ", error);
             });
+
+
+            // Listen for checkbox state changes.
+            scoresTableBody.addEventListener('change', (event) => {
+                const target = event.target;
+                console.log(target.tagName);
+                if (target.tagName.toLowerCase() === 'input' && target.type === 'checkbox') {
+                    const row = target.closest('tr');
+                    db.collection('scores').doc(row.dataset.id).update({
+                        acceptable: target.checked
+                    }).catch((error) => {
+                        console.error("Error updating acceptance: ", error);
+                    });
+                }
+            });
+
+            // Listen for checkbox state changes and input focus changes
+            scoresTableBody.addEventListener('change', handleInputChange);
+            scoresTableBody.addEventListener('blur', handleInputChange, true);
+
+            function handleInputChange(event) {
+                const target = event.target;
+                const row = target.closest('tr');
+                if (target.type === 'checkbox') {
+                    db.collection('scores').doc(row.dataset.id).update({
+                        acceptable: target.checked
+                    }).catch((error) => {
+                        console.error("Error updating acceptance: ", error);
+                    });
+                } else if (target.type === 'text') {
+                    db.collection('scores').doc(row.dataset.id).update({
+                        remarks: target.value
+                    }).catch((error) => {
+                        console.error("Error updating remarks: ", error);
+                    });
+                }
+            }
         });
+
+
     </script>
 </body>
 
