@@ -2,9 +2,9 @@
 1. conversational
     if answer not acceptable then follow-up question.
 2. non-personal question - current affair
-3. better scoring - generic~relevance: follow-back question , 
+3. better scoring - generic~relevance --- DONE : follow-back question , 
     +insight discovery
-4. Scoring - human feedback
+4. Scoring - human feedback --- DONE
 
 # scenario where user asks question.
 # think like human - divert-bring back to topic, if too casual-end the conversation, no clarity-next question

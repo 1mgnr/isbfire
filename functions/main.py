@@ -2,8 +2,7 @@ from firebase_functions import https_fn
 import firebase_admin
 from firebase_admin import initialize_app, credentials, firestore
 from firebase_functions.firestore_fn import on_document_created, Event, DocumentSnapshot
-from agent_functions import *
-from send_reply import *
+from agents import *
 from config import *
 import json
 
@@ -12,36 +11,17 @@ cred = credentials.Certificate("./serviceAccountKey.json")
 initialize_app(cred)
 db = firestore.client()
 
-# @https_fn.on_request()
-# def on_request_example(req: https_fn.Request) -> https_fn.Response:
-#     handle_text_message("hello there")
-#     return https_fn.Response("Hello world!")
-
 
 @on_document_created(document="messages/{messageId}")
 def on_message_received(event: Event[DocumentSnapshot]) -> None:
-
+    """Handle new messages as Firestore Document creates events."""
     new_message_data = event.data.to_dict()
-    print(f"New message received: {new_message_data}")
+
+    if new_message_data.get("role") == "human":
+        handle_text_message(new_message_data.get("message", ""))
 
     doc_id = event.params["messageId"]
-
-    print(f"New message received: {new_message_data}")
-
-    # Check if the message is from the user and needs processing
-    if new_message_data.get("role") == "human":
-        user_message = new_message_data.get("message", "")
-
-        response_message = handle_text_message(user_message)
-
-        if response_message:
-            send_reply(response_message)
-
-    db.collection("messages").document(doc_id).update(
-        {"message_status": "message received"}
-    )
-
-    print(f"Message status updated for: {doc_id}")
+    db.collection("messages").document(doc_id).update({"message_status": "message received"})
 
 
 def send_reply(message):
@@ -57,90 +37,107 @@ def send_reply(message):
 
 
 conversation_state = {
-    "step": 0,
-    "question_index": 0,  # new addition
-    "intro_done": False,
-    "resume": "",
-    "questions": ["" for _ in range(len(BASE_QUESTIONS))],
-    "answers": ["" for _ in range(len(BASE_QUESTIONS))],
-    "scores": [""] * len(BASE_QUESTIONS),
+        "step": 0,
+        "intro_done": False,
+        "resume": "",
+        "interview": [],  # Stores QA pairs
+        "current_q_index": 0 
 }
 
 
 def handle_text_message(message):
+    """Process received text messages during the interview."""
     global conversation_state
-    user_message = message
-    num_questions = len(BASE_QUESTIONS)
-    print("hello world 001")
-
+    
     if not conversation_state["intro_done"]:
-        for intro in CREATE_INTRO:
-            print(intro)
-            send_reply(intro)
-        conversation_state["intro_done"] = True
-
+        greeting_and_resume_request()
     elif conversation_state["step"] == 0:
-        if len(user_message) < 50:  # check for adequate resume text
-            send_reply(REQUEST_INADEQUATE_TEXT)
+        process_resume_submission(message)
+    else:
+        process_interview_step(message)
+
+
+def greeting_and_resume_request():
+    """Send a greeting and request for the resume."""
+    send_reply("Hello! Welcome to your interview. Please paste your resume text here.")
+    conversation_state["intro_done"] = True
+
+
+def process_resume_submission(message):
+    """Handle resume submission and verify its adequacy."""
+    global conversation_state
+
+    if len(message) < 50:
+        send_reply(REQUEST_INADEQUATE_TEXT)
+    else:
+        conversation_state["resume"] = get_summary(message)  # Assuming get_summary is implemented
+        send_reply(RESUME_RECEIVED)
+        conversation_state["step"] = 1
+        prompt_next_question()
+
+
+def prompt_next_question():
+    print("QUE INDEX",conversation_state["current_q_index"])
+    next_question = agent_1_question_maker(conversation_state["resume"],conversation_state["current_q_index"])
+    if next_question:
+        conversation_state["interview"].append({"question": next_question, "answer": "", "score": None})
+        send_reply(next_question)
+    else:
+        # No more questions, conclude interview
+        complete_interview()
+
+
+def process_interview_step(message):
+    """
+    Handles processing the received message in the context of the interview.
+    """
+    global conversation_state
+    if conversation_state["step"] % 2 == 0:  # Even steps are for processing answers
+        current_qa_index = len(conversation_state["interview"]) - 1
+        current_qa = conversation_state["interview"][current_qa_index]
+        current_qa["answer"] = message
+        
+        score_dict, data_to_save, is_satisfactory = agent_3_scorer(
+            message, 
+            current_qa["question"], 
+            current_qa_index
+        )
+
+        db.collection("scores").document().set(data_to_save)
+
+        print(">>>>> SCORE INFO >>>>>", score_dict)
+        
+        current_qa["score"] = score_dict["score"]
+        if not is_satisfactory:
+            # Handle the follow-up scenario
+            followup_question = "Could you elaborate on that?"
+            send_reply(followup_question)
         else:
-            conversation_state["resume"] = get_summary(user_message)
-            print(
-                f"\nBEGIN NEW LOOP\nReceived candidate's resume:\n{conversation_state['resume']}\n"
-            )
-            send_reply(RESUME_RECEIVED)  # Acknowledge receipt of resume
+            conversation_state["step"] += 1  # Proceed to next question or wrap-up
+            send_reply("I see")
+        
+        # Save score information and satisfaction determination
+        current_qa["score_info"] = score_dict
+        current_qa["is_satisfactory"] = is_satisfactory
 
-            conversation_state["step"] += 1  # Increase the step
+    
+    elif conversation_state["step"] % 2 == 1:  # Odd steps are for asking next question
+        print(">>>>>> WE'RE IN ELIF >>>>>", conversation_state["step"])
+        
+        if conversation_state["current_q_index"] < len(BASE_QUESTIONS) - 1:
+            conversation_state["current_q_index"] += 1
+            prompt_next_question()
+            conversation_state["step"] += 1
 
-            # Generate the first question in same iteration
-            conversation_state = agent_1_question_maker(conversation_state)
-            # Send the first question to the candidate on telegram
-            send_reply(
-                conversation_state["questions"][conversation_state["question_index"]]
-            )
+        else:
+            complete_interview()
 
-    elif 1 <= conversation_state["step"] < num_questions * 2 + 1:
-        if conversation_state["step"] % 2 == 0:  # Receive Answer, Score it
-            conversation_state, doc_to_save, is_satisfactory = agent_3_scorer(
-                conversation_state, user_message
-            )
-            print(json.loads(doc_to_save))
+def complete_interview():
+    global conversation_state
 
-            if not is_satisfactory:
-                followup_question = agent_3_scorer(conversation_state, user_message)
-                send_reply(followup_question)
-            # Save doc_to_save to Firestore
-            try:
-                db.collection(SCORES_COLLECTION).add(json.loads(doc_to_save))  # Choose your collection name
-                print("Document saved successfully.")
-            except Exception as e:
-                print(f"Failed to save document: {e}")
-            send_reply(WAIT_MSG)
-
-        elif conversation_state["step"] % 2 == 1:  # Generate Next Question
-            conversation_state = agent_1_question_maker(conversation_state)
-            send_reply(
-                conversation_state["questions"][conversation_state["question_index"]]
-            )  # Send the question to candidate on telegram
-
-    elif conversation_state["step"] == num_questions * 2 + 1:
-        thankyouPrompt_system_message = "Craft a polite and professional thank you or follow-up message that consolidates the conversation and reciprocates the candidate's responses. Within 20 words"
-        thank_you_message = orchestrator.assistant.converse(
-            thankyouPrompt_system_message, "Generate a thank you message"
-        )
-
-        summary_message = "\n".join(
-            [
-                f'Question {i+1}: {conversation_state["questions"][i]}\nAnswer: {conversation_state["answers"][i]}\nScore: {conversation_state["scores"][i]}'
-                for i in range(len(BASE_QUESTIONS))
-            ]
-        )
-
-        print(
-            f"\nAssessment Summary:\n{summary_message}\n\nThank You Message:\n{thank_you_message}\n========================== END ==========================\n"
-        )
-
-        send_reply(
-            thank_you_message
-        )  # Send thank you message to the candidate on telegram
-
-        conversation_state = reset_conversation_state()  # Reset conversation state
+    summary_message = "Interview Summary:\n" + "\n".join(
+        f'Q: {qa["question"]} A: {qa["answer"]} Score: {qa.get("score", "N/A")}' for qa in conversation_state["interview"]
+    )
+    print(summary_message)
+    send_reply("Thank you for participating in the interview.")
+    conversation_state = reset_conversation_state()  # Reset for possibly the next interview
