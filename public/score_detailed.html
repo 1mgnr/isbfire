@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Interview Feedback Display</title>
+
+    <!-- Firebase SDKs -->
+    <script defer src="/__/firebase/10.8.1/firebase-app-compat.js"></script>
+    <script defer src="/__/firebase/10.8.1/firebase-firestore-compat.js"></script>
+    <script defer src="/__/firebase/init.js?useEmulator=true"></script>
+
+    <!-- Material Design -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            margin: 0;
+            background-color: #f0f0f0;
+            color: #333;
+            display: flex;
+        }
+
+        #sidebar {
+            width: 200px;
+            background-color: #fff;
+            padding: 20px;
+            height: 100vh;
+            /* Full height */
+            box-shadow: 2px 0 5px 0 rgba(0, 0, 0, 0.1);
+            position: fixed;
+        }
+
+        .container {
+            background-color: #ffffff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px;
+            overflow-y: auto;
+            flex-grow: 1;
+            margin-left: 250px;
+
+        }
+
+        .header {
+            font-size: 24px;
+            color: #007bff;
+            margin-bottom: 10px;
+        }
+
+        .question,
+        .answer,
+        .score,
+        .score-detail {
+            margin-bottom: 10px;
+        }
+
+        .sidebar-item {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            padding: 10px;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+
+        .sidebar-item:hover {
+            background-color: #eeeeee;
+        }
+
+        .material-icons {
+            margin-right: 10px;
+            color: #6f6f6f;
+        }
+
+        .score-value {
+            font-size: 24px;
+            /* Making the score bigger */
+            color: #007bff;
+            margin-right: 20px;
+        }
+
+        .score-input {
+            display: flex;
+            align-items: center;
+            margin-top: 10px;
+        }
+
+        .score-details {
+            background-color: #f8f9fa;
+            border-left: 5px solid #007bff;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="sidebar"></div>
+    <div id="content"></div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const sidebar = document.getElementById('sidebar');
+            const content = document.getElementById('content');
+
+            // Fetching logs from Firestore
+            firebase.firestore().collection('logs')
+                .get()
+                .then((querySnapshot) => {
+                    let firstDocId = null;
+                    index = 0;
+                    querySnapshot.forEach((doc) => {
+                        firstDocId = doc.id; // Capture the first document ID
+
+                        const div = document.createElement('div');
+                        div.className = 'sidebar-item';
+                        div.innerHTML = `<span class="material-icons">assignment</span>Interview #${index + 1}`; // Material Icon with Interview #
+                        div.onclick = () => displayData(doc.id); // Display doc data when clicked
+                        sidebar.appendChild(div);
+                        index++;
+                    });
+
+                    if (firstDocId) displayData(firstDocId); // Display first doc data by default
+                })
+                .catch((error) => {
+                    console.error("Error fetching logs: ", error);
+                });
+
+            function displayData(docId) {
+                firebase.firestore().collection('logs').doc(docId)
+                    .get()
+                    .then(doc => {
+                        if (!doc.exists) {
+                            console.error('Document does not exist!');
+                            return;
+                        }
+
+                        const data = doc.data();
+                        content.innerHTML = `
+                        <div class="container">
+                            <div class="header">INTERVIEWS WITH SCORES</div>
+                            <div class="resume">${data.resume}</div>
+                        </div>`;
+
+                        data.interview.forEach(function (item, index) {
+                            let weightedRelevance = (item.score_info ? item.score_info.relevance : 0) * 0.3;
+                            let weightedSincerity = (item.score_info ? item.score_info.sincerity : 0) * 0.3;
+                            let weightedCommunication = (item.score_info ? item.score_info.communication_skills : 0) * 0.4;
+                            let weightedAverage = weightedRelevance + weightedSincerity + weightedCommunication; // Sum of weighted components
+
+                            var interviewContent = `
+                                <div class="container">
+                                    <div class="question">Question ${index + 1}: ${item.question}</div>
+                                    <div class="answer">Answer: ${item.answer}</div>
+                                    
+                                    <div class="score-input">
+                                        <span class="score-value">Score: ${item.score.toFixed(2)}</span>
+                                        <label for="human-rating-${index}">Your Rating:</label>
+                                        <input id="human-rating-${index}" type="number" step="0.1" min="0" max="5">
+                                    </div>
+                                    
+                                    <div class="score-details">
+                                        <div>Components weighted average: ${weightedAverage.toFixed(2)}</div>
+                                        <div class="detail-item">Relevance (${item.score_info ? item.score_info.relevance : 'N/A'}) x 0.3 = ${weightedRelevance.toFixed(2)}</div>
+                                        <div class="detail-item">Sincerity (${item.score_info ? item.score_info.sincerity : 'N/A'}) x 0.3 = ${weightedSincerity.toFixed(2)}</div>
+                                        <div class="detail-item">Communication Skills (${item.score_info ? item.score_info.communication_skills : 'N/A'}) x 0.4 = ${weightedCommunication.toFixed(2)}</div>
+                                    </div>
+                                </div>`;
+
+                            content.insertAdjacentHTML('beforeend', interviewContent);
+                        });
+                    })
+                    .catch(error => {
+                        console.error("Error fetching document details: ", error);
+                    });
+            }
+        });
+    </script>
+</body>
+
+</html>

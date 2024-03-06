@@ -18,7 +18,7 @@ body {
 }
 
 p {
-  max-width: 255px; /* or any max-width that suits your design */
+  /* max-width: 255px; or any max-width that suits your design */
   word-wrap: break-word;
   margin-bottom: 12px;
   line-height: 24px;

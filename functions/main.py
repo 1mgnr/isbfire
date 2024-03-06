@@ -12,6 +12,16 @@ initialize_app(cred)
 db = firestore.client()
 
 
+conversation_state = {
+        "step": 0,
+        "intro_done": False,
+        "resume": "",
+        "interview": [],  # Stores QA pairs
+        "current_q_index": 0 
+}
+
+
+# #####################
 @on_document_created(document="messages/{messageId}")
 def on_message_received(event: Event[DocumentSnapshot]) -> None:
     """Handle new messages as Firestore Document creates events."""
@@ -24,31 +34,14 @@ def on_message_received(event: Event[DocumentSnapshot]) -> None:
     db.collection("messages").document(doc_id).update({"message_status": "message received"})
 
 
-def send_reply(message):
-
-    """Creates a new document with the reply message."""
-    reply_document = {
-        "message": message,
-        "role": "bot",  # Assuming the response role to be 'bot' for simplicity
-        "timestamp": firestore.SERVER_TIMESTAMP,
-    }
-    db.collection("messages").add(reply_document)
-    print("Reply message sent and saved to Firestore.")
-
-
-conversation_state = {
-        "step": 0,
-        "intro_done": False,
-        "resume": "",
-        "interview": [],  # Stores QA pairs
-        "current_q_index": 0 
-}
-
-
+# #####################
 def handle_text_message(message):
     """Process received text messages during the interview."""
     global conversation_state
+    print(">>>>>>>>>>>>>>>>>",conversation_state)
     
+    db.collection("logs").document().set(conversation_state)
+
     if not conversation_state["intro_done"]:
         greeting_and_resume_request()
     elif conversation_state["step"] == 0:
@@ -57,36 +50,7 @@ def handle_text_message(message):
         process_interview_step(message)
 
 
-def greeting_and_resume_request():
-    """Send a greeting and request for the resume."""
-    send_reply("Hello! Welcome to your interview. Please paste your resume text here.")
-    conversation_state["intro_done"] = True
-
-
-def process_resume_submission(message):
-    """Handle resume submission and verify its adequacy."""
-    global conversation_state
-
-    if len(message) < 50:
-        send_reply(REQUEST_INADEQUATE_TEXT)
-    else:
-        conversation_state["resume"] = get_summary(message)  # Assuming get_summary is implemented
-        send_reply(RESUME_RECEIVED)
-        conversation_state["step"] = 1
-        prompt_next_question()
-
-
-def prompt_next_question():
-    print("QUE INDEX",conversation_state["current_q_index"])
-    next_question = agent_1_question_maker(conversation_state["resume"],conversation_state["current_q_index"])
-    if next_question:
-        conversation_state["interview"].append({"question": next_question, "answer": "", "score": None})
-        send_reply(next_question)
-    else:
-        # No more questions, conclude interview
-        complete_interview()
-
-
+# #####################
 def process_interview_step(message):
     """
     Handles processing the received message in the context of the interview.
@@ -109,7 +73,7 @@ def process_interview_step(message):
         
         current_qa["score"] = score_dict["score"]
         if not is_satisfactory:
-            # Handle the follow-up scenario
+            # Handle the follow-up scenario // add a skip question
             followup_question = "Could you elaborate on that?"
             send_reply(followup_question)
         else:
@@ -132,6 +96,54 @@ def process_interview_step(message):
         else:
             complete_interview()
 
+
+
+
+# ######################################################################## #
+
+def greeting_and_resume_request():
+    """Send a greeting and request for the resume."""
+    send_reply("Hello! Welcome to your interview. Please paste your resume text here.")
+    conversation_state["intro_done"] = True
+
+
+def process_resume_submission(message):
+    """Handle resume submission and verify its adequacy."""
+    global conversation_state
+
+    if len(message) < 50:
+        send_reply(REQUEST_INADEQUATE_TEXT)
+    else:
+        conversation_state["resume"] = get_summary(message)  # Assuming get_summary is implemented
+        send_reply(RESUME_RECEIVED)
+        conversation_state["step"] = 1
+
+
+def prompt_next_question():
+    print("QUE INDEX",conversation_state["current_q_index"])
+    next_question = agent_1_question_maker(conversation_state["resume"],conversation_state["current_q_index"])
+    if next_question:
+        conversation_state["interview"].append({"question": next_question, "answer": "", "score": None})
+        send_reply(next_question)
+    else:
+        # No more questions, conclude interview
+        complete_interview()
+
+
+
+
+def send_reply(message):
+
+    """Creates a new document with the reply message."""
+    reply_document = {
+        "message": message,
+        "role": "bot",  # Assuming the response role to be 'bot' for simplicity
+        "timestamp": firestore.SERVER_TIMESTAMP,
+    }
+    db.collection("messages").add(reply_document)
+    print("Reply message sent and saved to Firestore.")
+
+
 def complete_interview():
     global conversation_state
 
@@ -141,3 +153,4 @@ def complete_interview():
     print(summary_message)
     send_reply("Thank you for participating in the interview.")
     conversation_state = reset_conversation_state()  # Reset for possibly the next interview
+
