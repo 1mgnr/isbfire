@@ -17,7 +17,7 @@ conversation_state = {
         "intro_done": False,
         "resume": "",
         "interview": [],  # Stores QA pairs
-        "current_q_index": 0 
+        "current_q_index": 0,
 }
 
 
@@ -38,9 +38,6 @@ def on_message_received(event: Event[DocumentSnapshot]) -> None:
 def handle_text_message(message):
     """Process received text messages during the interview."""
     global conversation_state
-    print(">>>>>>>>>>>>>>>>>",conversation_state)
-    
-    db.collection("logs").document().set(conversation_state)
 
     if not conversation_state["intro_done"]:
         greeting_and_resume_request()
@@ -74,7 +71,8 @@ def process_interview_step(message):
         current_qa["score"] = score_dict["score"]
         if not is_satisfactory:
             # Handle the follow-up scenario // add a skip question
-            followup_question = "Could you elaborate on that?"
+            followup_question = agent_2_followup_question_maker(conversation_state["resume"],current_qa_index,current_qa["question"],message)
+            send_reply("I would like to know more, let me rephrase!")
             send_reply(followup_question)
         else:
             conversation_state["step"] += 1  # Proceed to next question or wrap-up
@@ -146,6 +144,9 @@ def send_reply(message):
 
 def complete_interview():
     global conversation_state
+    
+    # SAVE CONVERSATION WITH SCORES TO THE DATABASE
+    db.collection("logs").document().set(conversation_state)
 
     summary_message = "Interview Summary:\n" + "\n".join(
         f'Q: {qa["question"]} A: {qa["answer"]} Score: {qa.get("score", "N/A")}' for qa in conversation_state["interview"]

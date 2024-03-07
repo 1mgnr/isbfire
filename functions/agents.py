@@ -19,12 +19,13 @@ def agent_1_question_maker(resume, current_index):
         return None
 
 
-def agent_2_followup_question_maker(index):
+def agent_2_followup_question_maker(resume, current_index, last_question, last_message):
     # Get the base question first
-    base_question = BASE_QUESTIONS[index]
+    base_question = BASE_QUESTIONS[current_index]
     
     # The rest of this function stays essentially the same
-    question = orchestrator.assistant.converse(prompt.QUESTION_BUILDER(state, base_question), f"Use the resume: {state['resume']}, previous Question: {state['questions']} generate a relevant question")
+    question = orchestrator.assistant.converse(
+        prompt.QUESTION_BUILDER(resume, base_question), f"Use the resume: {resume}. Response:` {last_message}` for the previous Question: {last_question} was unsatisfactory. Ask a followup question. The followup question should give you more info about the base question. Don't add any other string. ")
     
     # Return updated state
     return question
@@ -57,15 +58,22 @@ def agent_3_scorer(answer, question, question_index):
 
     print(f"Assessed Score for Question {question_index + 1}:\n{score_dict}\n")  # Log score to console
 
+    is_negative = orchestrator.assistant.converse(f"You analyse if the question and its response in an interview require further questioning or the answer/response indicates this question is irrelevant or has a no/negative response. You only respond in True/False", f"based on base attribute: {base_question}, the contextual question : {question}, and the response from candidate: {answer}.. tell me in True or False only. True if the response indicates that the question is not so relavent to the candidate and no further inquiry is required. If further question is required, return False")
+
+    print(f"is a negative answer: {is_negative}",type(is_negative))
+
     # Prepare document to save
     doc_to_save = score_dict
     
     is_satisfactory=True
 
     if score_dict["score"] < 2:
-        is_satisfactory = False
+        if is_negative=="False":
+            is_satisfactory = False
+        elif is_negative=="True":
+            is_satisfactory = True
 
-    is_satisfactory = score_dict["score"] >= 2
+    # is_satisfactory = score_dict["score"] >= 2
     return score_dict, doc_to_save, is_satisfactory
 
 

@@ -3,7 +3,7 @@ CREATE_INTRO = [
     "I will begin by generating a unique question based on the resume you provide.",
     "Please provide the candidate's resume text of at least 50 characters for a productive conversation:"
 ]
-RESUME_RECEIVED = "Thanks a lot! Going through the candidate's resume."
+RESUME_RECEIVED = "Thanks a lot! Are you ready to begin?"
 REQUEST_INADEQUATE_TEXT = "The text is quite short to understand the profile. Could you please provide a more detailed resume text:"
 THANK_YOU_MSG = "Generate a thank you message"
 WAIT_MSG = "Thank you for your responses. Please wait for the next question."

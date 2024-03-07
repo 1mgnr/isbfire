@@ -30,6 +30,7 @@
             /* Full height */
             box-shadow: 2px 0 5px 0 rgba(0, 0, 0, 0.1);
             position: fixed;
+            margin-top: 50px;
         }
 
         .container {
@@ -95,10 +96,24 @@
             margin-top: 10px;
             border-radius: 4px;
         }
+
+        #content{
+            margin-top: 50px;
+        }
     </style>
+        <link rel="stylesheet" href="styles.css">
+
 </head>
 
 <body>
+
+    <nav>
+        <a href="index.html">Home</a>
+        <a href="scores.html">Scores</a>
+        <a href="score_detailed.html">Scores-2</a>
+
+    </nav>
+    
     <div id="sidebar"></div>
     <div id="content"></div>
 
@@ -147,9 +162,9 @@
                         </div>`;
 
                         data.interview.forEach(function (item, index) {
-                            let weightedRelevance = (item.score_info ? item.score_info.relevance : 0) * 0.3;
+                            let weightedRelevance = (item.score_info ? item.score_info.relevance : 0) * 0.4;
                             let weightedSincerity = (item.score_info ? item.score_info.sincerity : 0) * 0.3;
-                            let weightedCommunication = (item.score_info ? item.score_info.communication_skills : 0) * 0.4;
+                            let weightedCommunication = (item.score_info ? item.score_info.communication_skills : 0) * 0.3;
                             let weightedAverage = weightedRelevance + weightedSincerity + weightedCommunication; // Sum of weighted components
 
                             var interviewContent = `
