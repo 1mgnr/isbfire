@@ -84,7 +84,9 @@ def get_summary(message):
 
 
 def reset_conversation_state():
-    return {"step": 0,
+    return {
+        "interview_id": "", 
+        "step": 0,
         "intro_done": False,
         "resume": "",
         "interview": [],  # Stores QA pairs

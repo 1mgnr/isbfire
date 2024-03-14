@@ -5,6 +5,7 @@ from firebase_functions.firestore_fn import on_document_created, Event, Document
 from agents import *
 from config import *
 import json
+import uuid
 
 # Firebase Initialization
 cred = credentials.Certificate("./serviceAccountKey.json")
@@ -13,10 +14,11 @@ db = firestore.client()
 
 
 conversation_state = {
+        "interview_id": "",  
         "step": 0,
         "intro_done": False,
         "resume": "",
-        "interview": [],  # Stores QA pairs
+        "interview": [],  # Stores QA pairs with score
         "current_q_index": 0,
 }
 
@@ -101,6 +103,8 @@ def process_interview_step(message):
 
 def greeting_and_resume_request():
     """Send a greeting and request for the resume."""
+    conversation_state["interview_id"] = str(uuid.uuid4())
+
     send_reply("Hello! Welcome to your interview. Please paste your resume text here.")
     conversation_state["intro_done"] = True
 
@@ -137,6 +141,8 @@ def send_reply(message):
         "message": message,
         "role": "bot",  # Assuming the response role to be 'bot' for simplicity
         "timestamp": firestore.SERVER_TIMESTAMP,
+        "interview_id": conversation_state["interview_id"],  # Include interview_id
+
     }
     db.collection("messages").add(reply_document)
     print("Reply message sent and saved to Firestore.")
@@ -146,7 +152,9 @@ def complete_interview():
     global conversation_state
     
     # SAVE CONVERSATION WITH SCORES TO THE DATABASE
-    db.collection("logs").document().set(conversation_state)
+    interview_data_with_id = {**conversation_state, "interview_id": conversation_state["interview_id"]}
+
+    db.collection("logs").document().set(interview_data_with_id)
 
     summary_message = "Interview Summary:\n" + "\n".join(
         f'Q: {qa["question"]} A: {qa["answer"]} Score: {qa.get("score", "N/A")}' for qa in conversation_state["interview"]
