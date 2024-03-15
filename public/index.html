@@ -47,7 +47,9 @@
     </div>
     <!-- <button id="fetchHistoryButton">Fetch Chat History</button> -->
 
-    <div id="sidebar"></div>
+    <div id="sidebar">
+        <button id="newThreadButton">NEW THREAD</button>
+    </div>
 
 
     <script>
@@ -72,19 +74,26 @@
             fetchThreads();
 
             function fetchThreads(){
-                            // Fetching logs from Firestore
-            firebase.firestore().collection('messages')
+            // Fetching logs from Firestore
+            firebase.firestore().collection('thread')
                 .get()
                 .then((querySnapshot) => {
                     let firstDocId = null;
                     index = 0;
+
+                    const button = document.createElement('button');
+                    button.id = 'newThreadButton';
+                    button.innerHTML = `NEW THREAD.`; // Material Icon with Interview #
+
+                    sidebar.replaceChildren(button);
+
                     querySnapshot.forEach((doc) => {
                         firstDocId = doc.id; // Capture the first document ID
 
                         const div = document.createElement('div');
                         div.className = 'sidebar-item';
-                        div.innerHTML = `<span class="material-icons">assignment</span>Interview #${index + 1}`; // Material Icon with Interview #
-                        div.onclick = () => displayData(doc.id); // Display doc data when clicked
+                        div.innerHTML = `<span class="material-icons">Thread</span> #${index + 1}`; // Material Icon with Interview #
+                        // div.onclick = () => displayData(doc.id); // Display doc data when clicked
                         sidebar.appendChild(div);
                         index++;
                     });
@@ -109,6 +118,20 @@
                     .catch((error) => {
                         console.error("Error fetching chat history: ", error);
                     });
+            }
+
+            newThreadButton.addEventListener('click', newThreadTrigger);
+
+
+            function newThreadTrigger(){
+                 // Attempt to save the message to Firestore
+                 console.log("NEW TRIGGER")
+                 firebase.firestore().collection('trigger').add({"button":"new thread"}).then(() => {
+                        console.log('Message saved!');
+                    }).catch((error) => {
+                        console.error('Error saving message: ', error);
+                    });
+                fetchThreads();
             }
 
             // Bind fetchChatHistory function to the click event of the "Fetch Chat History" button

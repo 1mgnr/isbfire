@@ -103,10 +103,23 @@ def process_interview_step(message):
 
 def greeting_and_resume_request():
     """Send a greeting and request for the resume."""
-    conversation_state["interview_id"] = str(uuid.uuid4())
 
     send_reply("Hello! Welcome to your interview. Please paste your resume text here.")
     conversation_state["intro_done"] = True
+
+
+
+# #####################
+@on_document_created(document="trigger/{triggerId}")
+def on_message_received(event: Event[DocumentSnapshot]) -> None:
+    """Handle new messages as Firestore Document creates events."""
+    conversation_state["interview_id"] = str(uuid.uuid4())
+
+    db.collection("thread").document(conversation_state["interview_id"]).set({
+        "timestamp": firestore.SERVER_TIMESTAMP,
+        "thread_id": conversation_state["interview_id"]
+    })
+
 
 
 def process_resume_submission(message):
