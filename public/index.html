@@ -54,129 +54,95 @@
 
 
     <script>
-
-        document.addEventListener("DOMContentLoaded", function () {
-
-            const sidebar = document.getElementById('sidebar');
-
-            const sendButton = document.getElementById('sendButton');
-            const messageInput = document.getElementById('messageInput');
-            const chatContainer = document.getElementById('chatContainer');
-            const fetchHistoryButton = document.getElementById('fetchHistoryButton');
-
-
-            function scrollToBottom() {
-                const chatContainer = document.getElementById('chatContainer');
-                chatContainer.scrollTop = chatContainer.scrollHeight;
-            }
-
-            scrollToBottom();
-
-
-            // Function to fetch chat history
-            function fetchChatHistory() {
-                chatContainer.innerHTML = ''; // Clear the chat container before displaying new messages
-                firebase.firestore().collection('messages').orderBy('timestamp')
-                    .get()
-                    .then((querySnapshot) => {
-                        querySnapshot.forEach((doc) => {
-                            displayMessage(doc.data());
-                        });
-                    })
-                    .catch((error) => {
-                        console.error("Error fetching chat history: ", error);
-                    });
-            }
-
-
-            // Bind fetchChatHistory function to the click event of the "Fetch Chat History" button
-            // fetchHistoryButton.addEventListener('click', fetchChatHistory);
-
-            function sendMessage() {
-                const messageText = messageInput.value;
-                if (messageText !== '') {
-                    const messageData = {
-                        message: messageText,
-                        role: "human", // Assuming the sender is "human"
-                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                    };
-
-                    // Attempt to save the message to Firestore
-                    firebase.firestore().collection('messages').add(messageData).then(() => {
-                        console.log('Message saved!');
-                        messageInput.value = ''; // Clear input after sending and displaying
-                    }).catch((error) => {
-                        console.error('Error saving message: ', error);
-                    });
-                }
-            }
-
-            // Event listener for the Enter key on the input field
-            messageInput.addEventListener('keydown', (event) => {
-                if (event.key === "Enter") {
-                    event.preventDefault(); // Prevent the default form submission on Enter key
-                    sendMessage();
-                }
-            });
-
+        document.addEventListener('DOMContentLoaded', function () {
+          const sidebar = document.getElementById('sidebar');
+          const sendButton = document.getElementById('sendButton');
+          const messageInput = document.getElementById('messageInput');
+          const chatContainer = document.getElementById('chatContainer');
+          const resetButton = document.getElementById('resetButton');
+      
+          function initializeChat() {
+            attachEventListeners();
+            fetchChatHistory();
+            listenForNewMessages();
+          }
+      
+          function attachEventListeners() {
+            messageInput.addEventListener('keydown', handleInputKeyDown);
             sendButton.addEventListener('click', sendMessage);
-
-            // Function to dynamically display messages
-            function displayMessage(data) {
-                const messageEl = document.createElement('p');
-                messageEl.textContent = data.message;
-                // Use 'send' for 'human' role and 'receive' for others
-                messageEl.classList.add('message', data.role === 'human' ? 'send' : 'receive');
-                chatContainer.appendChild(messageEl);
-                scrollToBottom();
+            resetButton.addEventListener('click', resetChat);
+          }
+      
+          function handleInputKeyDown(event) {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              sendMessage();
             }
-
-            // Listen for new messages
+          }
+      
+          function sendMessage() {
+            const messageText = messageInput.value.trim();
+            if (!messageText) return;
+      
+            const messageData = {
+              message: messageText,
+              role: 'human',
+              timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+            };
+      
+            firebase.firestore().collection('messages').add(messageData)
+              .then(() => {
+                messageInput.value = '';
+                scrollToBottom();
+              })
+              .catch((error) => console.error('Error sending message:', error));
+          }
+      
+          function fetchChatHistory() {
+            chatContainer.innerHTML = ''; // Clear the chat container
             firebase.firestore().collection('messages').orderBy('timestamp')
-                .onSnapshot((snapshot) => {
-                    console.log("SNAPSHOT RECEIVED");
-                    snapshot.docChanges().forEach((change) => {
-                        if (change.type === "added") {
-                            console.log("New message: ", change.doc.data());
-                            displayMessage(change.doc.data());
-                        }
-                    });
-                }, (error) => {
-                    console.error("Error fetching messages: ", error);
+              .get()
+              .then(querySnapshot => querySnapshot.forEach(doc => displayMessage(doc.data())))
+              .catch(error => console.error('Error fetching chat history:', error));
+          }
+      
+          function listenForNewMessages() {
+            firebase.firestore().collection('messages').orderBy('timestamp')
+              .onSnapshot(snapshot => {
+                snapshot.docChanges().forEach(change => {
+                  if (change.type === 'added') displayMessage(change.doc.data());
                 });
-
-
-            // Grab the reset button
-            const resetButton = document.getElementById('resetButton');
-
-            // Reset Button Event Listener
-            resetButton.addEventListener('click', async () => {
-                if (!confirm("Are you sure you want to reset the chat? This action cannot be undone.")) {
-                    return; // Exit if the user cancels the action
-                }
-
-                try {
-                    // Fetch all document references from the messages collection
-                    const snapshot = await firebase.firestore().collection('messages').get();
-
-                    // Create a batch to delete all documents
-                    const batch = firebase.firestore().batch();
-                    snapshot.forEach(doc => {
-                        batch.delete(doc.ref);
-                    });
-
-                    // Commit the batch
-                    await batch.commit();
-                    fetchChatHistory();
-                    console.log('All messages have been deleted.');
-                } catch (error) {
-                    console.error("Error resetting chat: ", error);
-                }
-            });
+                scrollToBottom();
+              }, error => console.error('Error listening for new messages:', error));
+          }
+      
+          function resetChat() {
+            if (!confirm('Are you sure you want to reset the chat? This action cannot be undone.')) return;
+      
+            firebase.firestore().collection('messages').get().then(snapshot => {
+              const batch = firebase.firestore().batch();
+              snapshot.forEach(doc => batch.delete(doc.ref));
+              return batch.commit();
+            }).then(() => {
+              console.log('All messages have been deleted.');
+              fetchChatHistory(); // Fetch history to refresh the chat view
+            }).catch(error => console.error('Error resetting chat:', error));
+          }
+      
+          function displayMessage(data) {
+            const messageEl = document.createElement('p');
+            messageEl.textContent = data.message;
+            messageEl.classList.add('message', data.role === 'human' ? 'send' : 'receive');
+            chatContainer.appendChild(messageEl);
+          }
+      
+          function scrollToBottom() {
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+          }
+      
+          initializeChat();
         });
-
-
-    </script>
+      </script>
 </body>
 
 </html>
