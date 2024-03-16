@@ -34,7 +34,7 @@
         <a href="score_detailed.html">Scores-2</a>
 
     </nav>
-    
+
     <div class="chat-window">
 
         <div class="chat-container" id="chatContainer">
@@ -48,7 +48,8 @@
     <!-- <button id="fetchHistoryButton">Fetch Chat History</button> -->
 
     <div id="sidebar">
-        <button id="newThreadButton">NEW THREAD</button>
+        <button id="resetButton">Reset Chat</button>
+
     </div>
 
 
@@ -71,39 +72,6 @@
 
             scrollToBottom();
 
-            fetchThreads();
-
-            function fetchThreads(){
-            // Fetching logs from Firestore
-            firebase.firestore().collection('thread')
-                .get()
-                .then((querySnapshot) => {
-                    let firstDocId = null;
-                    index = 0;
-
-                    const button = document.createElement('button');
-                    button.id = 'newThreadButton';
-                    button.innerHTML = `NEW THREAD.`; // Material Icon with Interview #
-
-                    sidebar.replaceChildren(button);
-
-                    querySnapshot.forEach((doc) => {
-                        firstDocId = doc.id; // Capture the first document ID
-
-                        const div = document.createElement('div');
-                        div.className = 'sidebar-item';
-                        div.innerHTML = `<span class="material-icons">Thread</span> #${index + 1}`; // Material Icon with Interview #
-                        // div.onclick = () => displayData(doc.id); // Display doc data when clicked
-                        sidebar.appendChild(div);
-                        index++;
-                    });
-
-                    if (firstDocId) displayData(firstDocId); // Display first doc data by default
-                })
-                .catch((error) => {
-                    console.error("Error fetching logs: ", error);
-                });
-            }
 
             // Function to fetch chat history
             function fetchChatHistory() {
@@ -120,19 +88,6 @@
                     });
             }
 
-            newThreadButton.addEventListener('click', newThreadTrigger);
-
-
-            function newThreadTrigger(){
-                 // Attempt to save the message to Firestore
-                 console.log("NEW TRIGGER")
-                 firebase.firestore().collection('trigger').add({"button":"new thread"}).then(() => {
-                        console.log('Message saved!');
-                    }).catch((error) => {
-                        console.error('Error saving message: ', error);
-                    });
-                fetchThreads();
-            }
 
             // Bind fetchChatHistory function to the click event of the "Fetch Chat History" button
             // fetchHistoryButton.addEventListener('click', fetchChatHistory);
@@ -189,6 +144,35 @@
                 }, (error) => {
                     console.error("Error fetching messages: ", error);
                 });
+
+
+            // Grab the reset button
+            const resetButton = document.getElementById('resetButton');
+
+            // Reset Button Event Listener
+            resetButton.addEventListener('click', async () => {
+                if (!confirm("Are you sure you want to reset the chat? This action cannot be undone.")) {
+                    return; // Exit if the user cancels the action
+                }
+
+                try {
+                    // Fetch all document references from the messages collection
+                    const snapshot = await firebase.firestore().collection('messages').get();
+
+                    // Create a batch to delete all documents
+                    const batch = firebase.firestore().batch();
+                    snapshot.forEach(doc => {
+                        batch.delete(doc.ref);
+                    });
+
+                    // Commit the batch
+                    await batch.commit();
+                    fetchChatHistory();
+                    console.log('All messages have been deleted.');
+                } catch (error) {
+                    console.error("Error resetting chat: ", error);
+                }
+            });
         });
 
 

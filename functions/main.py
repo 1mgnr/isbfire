@@ -1,5 +1,5 @@
-from firebase_functions import https_fn
-import firebase_admin
+# from firebase_functions import https_fn
+# import firebase_admin
 from firebase_admin import initialize_app, credentials, firestore
 from firebase_functions.firestore_fn import on_document_created, Event, DocumentSnapshot
 from agents import *
@@ -27,6 +27,7 @@ conversation_state = {
 @on_document_created(document="messages/{messageId}")
 def on_message_received(event: Event[DocumentSnapshot]) -> None:
     """Handle new messages as Firestore Document creates events."""
+    print("NEW DOC CREATED")
     new_message_data = event.data.to_dict()
 
     if new_message_data.get("role") == "human":
@@ -40,6 +41,7 @@ def on_message_received(event: Event[DocumentSnapshot]) -> None:
 def handle_text_message(message):
     """Process received text messages during the interview."""
     global conversation_state
+    print("HANDLE MESSAGE CALLED")
 
     if not conversation_state["intro_done"]:
         greeting_and_resume_request()
@@ -110,15 +112,15 @@ def greeting_and_resume_request():
 
 
 # #####################
-@on_document_created(document="trigger/{triggerId}")
-def on_message_received(event: Event[DocumentSnapshot]) -> None:
-    """Handle new messages as Firestore Document creates events."""
-    conversation_state["interview_id"] = str(uuid.uuid4())
+# @on_document_created(document="trigger/{triggerId}")
+# def on_message_received(event: Event[DocumentSnapshot]) -> None:
+#     """Handle new messages as Firestore Document creates events."""
+#     conversation_state["interview_id"] = str(uuid.uuid4())
 
-    db.collection("thread").document(conversation_state["interview_id"]).set({
-        "timestamp": firestore.SERVER_TIMESTAMP,
-        "thread_id": conversation_state["interview_id"]
-    })
+#     db.collection("thread").document(conversation_state["interview_id"]).set({
+#         "timestamp": firestore.SERVER_TIMESTAMP,
+#         "thread_id": conversation_state["interview_id"]
+#     })
 
 
 
